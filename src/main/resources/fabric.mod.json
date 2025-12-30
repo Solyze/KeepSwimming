@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "keepswimming",
+  "version": "${version}",
+  "name": "Keep Swimming",
+  "description": "A Minecraft mod that keeps you afloat in water during actions that would usually make you sink.",
+  "authors": ["Solyze"],
+  "contact": {},
+  "license": "GPL-3.0",
+  "icon": "assets/keepswimming/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.solyze.keepswimming.client.KeepSwimmingClient"
+    ],
+    "main": [
+      "net.solyze.keepswimming.KeepSwimming"
+    ]
+  },
+  "mixins": [
+    "keepswimming.mixins.json",
+    {
+      "config": "keepswimming.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
