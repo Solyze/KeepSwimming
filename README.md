@@ -22,3 +22,6 @@ Due to this technically being a cheat, in order to comply with Modrinth's rules,
 
 ### 🐛 Issue/Bug Tracker
 - https://github.com/Solyze/KeepSwimming/issues
+
+### ❓ Support Server
+- https://discord.gg/ncBX47WpW2
