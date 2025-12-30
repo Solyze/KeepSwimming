@@ -1,4 +1,4 @@
-# KeepSwimming
+# KeepSwimming (fabric)
 💧 A Minecraft mod that keeps you afloat in water during actions that would usually make you sink.
 
 ### ❓ Keep swimming when:
