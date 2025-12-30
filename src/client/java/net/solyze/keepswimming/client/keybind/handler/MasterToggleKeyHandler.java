@@ -18,6 +18,8 @@ public class MasterToggleKeyHandler extends KeyHandler {
 
     @Override
     public void onWasPressed(MinecraftClient client) {
+        if (!client.isInSingleplayer()) return;
+
         KeepSwimming.INSTANCE.getConfig(KeepSwimmingConfig.class).ifPresent(object -> {
             KeepSwimmingConfig config = (KeepSwimmingConfig) object;
             boolean toggled = !config.isMasterToggle();

@@ -14,6 +14,9 @@ import net.minecraft.client.gui.screen.pack.PackScreen;
 import net.minecraft.client.gui.screen.report.ReportScreen;
 import net.minecraft.client.input.Input;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.ScreenHandlerType;
+import net.minecraft.text.TranslatableTextContent;
 import net.solyze.keepswimming.KeepSwimming;
 import net.solyze.keepswimming.config.KeepSwimmingConfig;
 import org.spongepowered.asm.mixin.Mixin;
@@ -71,9 +74,33 @@ public class ClientPlayerEntityMixin {
             Map.entry(StonecutterScreen.class, KeepSwimmingConfig::isStonecutter),
             Map.entry(StructureBlockScreen.class, KeepSwimmingConfig::isStructureBlock),
             Map.entry(TestBlockScreen.class, KeepSwimmingConfig::isTestBlock),
-            Map.entry(TestInstanceBlockScreen.class, KeepSwimmingConfig::isTestBlock)
+            Map.entry(TestInstanceBlockScreen.class, KeepSwimmingConfig::isTestBlock),
+            Map.entry(GenericContainerScreen.class, config -> {
+                GenericContainerScreen screen = (GenericContainerScreen) MinecraftClient.getInstance().currentScreen;
+
+                if (screen != null && screen.getTitle().getContent() instanceof TranslatableTextContent translatable) {
+                    if (config.isChest() && translatable.getKey().equals("container.chest")) return true;
+                    return config.isBarrel() && translatable.getKey().equals("container.barrel");
+                }
+
+                return false;
+            }),
+            Map.entry(Generic3x3ContainerScreen.class, config -> {
+                Generic3x3ContainerScreen screen = (Generic3x3ContainerScreen) MinecraftClient.getInstance().currentScreen;
+
+                if (screen != null && screen.getTitle().getContent() instanceof TranslatableTextContent translatable) {
+                    if (config.isDropper() && translatable.getKey().equals("container.dropper")) return true;
+                    return config.isDispenser() && translatable.getKey().equals("container.dispenser");
+                }
+
+                return false;
+            })
     );
 
+    @Unique
+    private static final Map<ScreenHandlerType<?>, Function<KeepSwimmingConfig, Boolean>> SCREEN_HANDLER_OPTIONS = Map.ofEntries(
+            Map.entry(ScreenHandlerType.MERCHANT, KeepSwimmingConfig::isMerchants)
+    );
 
     @Shadow public Input input;
 
@@ -87,21 +114,21 @@ public class ClientPlayerEntityMixin {
     )
     private void tickMovement(CallbackInfo ci) {
         ClientPlayerEntity player = (ClientPlayerEntity) (Object) this;
-        if (!player.isTouchingWater()) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!client.isInSingleplayer() || !player.isTouchingWater()) return;
 
         Optional<Object> optional = KeepSwimming.INSTANCE.getConfig(KeepSwimmingConfig.class);
-        Screen screen = MinecraftClient.getInstance().currentScreen;
+        if (optional.isEmpty()) return;
+        KeepSwimmingConfig config = (KeepSwimmingConfig) optional.get();
+        if (!config.isMasterToggle()) return;
 
-        if (screen != null && optional.isPresent()) {
-            KeepSwimmingConfig config = (KeepSwimmingConfig) optional.get();
+        if (config.isAlways()) {
+            this.input.jump();
+            return;
+        }
 
-            if (!config.isMasterToggle()) return;
-
-            if (config.isAlways()) {
-                this.input.jump();
-                return;
-            }
-
+        Screen screen = client.currentScreen;
+        if (screen != null) {
             if (player.getAbilities().allowFlying && !config.isEvenFlying()) return;
 
             for (Map.Entry<Class<? extends Screen>, Function<KeepSwimmingConfig, Boolean>> entry : SCREEN_OPTIONS.entrySet()) {
@@ -109,6 +136,23 @@ public class ClientPlayerEntityMixin {
                     this.input.jump();
                     break;
                 }
+            }
+        }
+
+        ScreenHandler screenHandler = player.currentScreenHandler;
+        if (screenHandler != null) {
+            try {
+                ScreenHandlerType<?> type = screenHandler.getType();
+
+                if (type != null) {
+                    for (Map.Entry<ScreenHandlerType<?>, Function<KeepSwimmingConfig, Boolean>> entry : SCREEN_HANDLER_OPTIONS.entrySet()) {
+                        if (type == entry.getKey() && entry.getValue().apply(config)) {
+                            this.input.jump();
+                        }
+                    }
+                }
+            } catch (UnsupportedOperationException ignored) {
+                // Minecraft won't let you call getType() if the type is null.
             }
         }
     }

@@ -82,9 +82,19 @@ java {
 }
 
 jar {
+    archiveBaseName.set(project.archives_base_name)
+    archiveVersion.set(project.version)
+    archiveClassifier.set("for-MC${project.minecraft_version}")
+
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}" }
+        rename { "${it}_${project.archives_base_name}" }
     }
+}
+
+tasks.named("remapJar") {
+    archiveBaseName.set(project.archives_base_name)
+    archiveVersion.set(project.version)
+    archiveClassifier.set("for-MC${project.minecraft_version}")
 }
 
 // configure the maven publication

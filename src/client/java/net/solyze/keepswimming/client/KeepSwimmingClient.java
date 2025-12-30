@@ -2,7 +2,6 @@ package net.solyze.keepswimming.client;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.tree.CommandNode;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -19,13 +18,8 @@ import net.solyze.keepswimming.client.keybind.KeyHandler;
 import net.solyze.keepswimming.client.keybind.handler.MasterToggleKeyHandler;
 import net.solyze.keepswimming.config.KeepSwimmingConfig;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
 
@@ -42,6 +36,14 @@ public class KeepSwimmingClient implements ClientModInitializer {
                     KeepSwimmingConfig::isEvenFlying, KeepSwimmingConfig::setEvenFlying),
             new KeepSwimmingOptionData("pause", "Pause", "Keep swimming whilst pause/sub screens are open.",
                     KeepSwimmingConfig::isPause, KeepSwimmingConfig::setPause),
+            new KeepSwimmingOptionData("chest", "Chest", "Keep swimming whilst the chest GUIs are open.",
+                    KeepSwimmingConfig::isChest, KeepSwimmingConfig::setChest),
+            new KeepSwimmingOptionData("barrel", "Barrel", "Keep swimming whilst the barrel GUIs are open.",
+                    KeepSwimmingConfig::isBarrel, KeepSwimmingConfig::setBarrel),
+            new KeepSwimmingOptionData("dropper", "Dropper", "Keep swimming whilst the dropper GUI is open.",
+                    KeepSwimmingConfig::isDropper, KeepSwimmingConfig::setDropper),
+            new KeepSwimmingOptionData("dispenser", "Dispenser", "Keep swimming whilst the dispenser GUI is open.",
+                    KeepSwimmingConfig::isDispenser, KeepSwimmingConfig::setDispenser),
             new KeepSwimmingOptionData("anvil", "Anvil", "Keep swimming whilst the anvil GUI is open.",
                     KeepSwimmingConfig::isAnvil, KeepSwimmingConfig::setAnvil),
             new KeepSwimmingOptionData("beacon", "Beacon", "Keep swimming whilst the beacon GUI is open.",
@@ -87,7 +89,9 @@ public class KeepSwimmingClient implements ClientModInitializer {
             new KeepSwimmingOptionData("structureblock", "Structure Block", "Keep swimming whilst the structure block GUIs are open.",
                     KeepSwimmingConfig::isStructureBlock, KeepSwimmingConfig::setStructureBlock),
             new KeepSwimmingOptionData("testblock", "Test Block", "Keep swimming whilst the test block GUIs are open.",
-                    KeepSwimmingConfig::isTestBlock, KeepSwimmingConfig::setTestBlock)
+                    KeepSwimmingConfig::isTestBlock, KeepSwimmingConfig::setTestBlock),
+            new KeepSwimmingOptionData("merchants", "Merchants", "Keep swimming whilst the merchant GUIs are open.",
+                    KeepSwimmingConfig::isMerchants, KeepSwimmingConfig::setMerchants)
     );
 
     private final List<KeyHandler> keyBindHandlers = new ArrayList<>();
@@ -97,10 +101,15 @@ public class KeepSwimmingClient implements ClientModInitializer {
         this.registerKeyBindHandler(new MasterToggleKeyHandler());
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndClientTick);
 
-        LiteralArgumentBuilder<FabricClientCommandSource> command = literal("keepswimming").executes(this::showHelp);
+        LiteralArgumentBuilder<FabricClientCommandSource> command = literal("keepswimming").executes(ctx -> {
+            if (checkMultiplayer(ctx)) return 1;
+            showHelp(ctx);
+            return 1;
+        });
 
         for (KeepSwimmingOptionData option : OPTION_DATA) {
             command = command.then(literal(option.key()).executes(ctx -> {
+                if (checkMultiplayer(ctx)) return 1;
                 toggleOption(option, ctx);
                 return 1;
             }));
@@ -121,7 +130,7 @@ public class KeepSwimmingClient implements ClientModInitializer {
         });
     }
 
-    private int showHelp(CommandContext<FabricClientCommandSource> ctx) {
+    private void showHelp(CommandContext<FabricClientCommandSource> ctx) {
         ClientPlayerEntity player = ctx.getSource().getPlayer();
         player.sendMessage(Text.empty(), false);
         player.sendMessage(Text.literal("Using the command with an option below will toggle said option.")
@@ -136,7 +145,7 @@ public class KeepSwimmingClient implements ClientModInitializer {
         String joined = String.join(" | ", OPTION_DATA.stream().map(KeepSwimmingOptionData::key).toList());
         player.sendMessage(Text.literal("Usage: /keepswimming <" + joined + ">").formatted(Formatting.RED), false);
         player.sendMessage(Text.empty(), false);
-        return 1;
+        return;
     }
 
     private MutableText getOptionText(KeepSwimmingOptionData option) {
@@ -158,6 +167,20 @@ public class KeepSwimmingClient implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(keyHandler.getKeyBinding());
         keyHandler.onInitializeClient();
         this.keyBindHandlers.add(keyHandler);
+    }
+
+    private boolean checkMultiplayer(CommandContext<FabricClientCommandSource> ctx) {
+        boolean multiplayer = !MinecraftClient.getInstance().isInSingleplayer();
+
+        if (multiplayer) {
+            MutableText name = Text.literal(KeepSwimming.MOD_DISPLAY).formatted(Formatting.AQUA);
+            MutableText sep = Text.literal(" » ").formatted(Formatting.DARK_GRAY);
+            MutableText err = Text.literal("This mod cannot be used on Multiplayer servers.").formatted(Formatting.RED);
+
+            ctx.getSource().getPlayer().sendMessage(name.append(sep).append(err), true);
+        }
+
+        return multiplayer;
     }
 
     private static MutableText getOptionToggleText(KeepSwimmingOptionData option, boolean toggled) {

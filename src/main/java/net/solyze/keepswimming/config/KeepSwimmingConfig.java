@@ -39,5 +39,10 @@ public class KeepSwimmingConfig {
     private boolean stonecutter = true;
     private boolean structureBlock = true;
     private boolean testBlock = true;
+    private boolean chest = true;
+    private boolean barrel = true;
+    private boolean dropper = true;
+    private boolean dispenser = true;
+    private boolean merchants = true;
 
 }
