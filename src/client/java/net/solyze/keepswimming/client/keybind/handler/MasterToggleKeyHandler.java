@@ -1,9 +1,9 @@
 package net.solyze.keepswimming.client.keybind.handler;
 
 import lombok.extern.slf4j.Slf4j;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.solyze.keepswimming.KeepSwimming;
 import net.solyze.keepswimming.client.keybind.KeyHandler;
 import net.solyze.keepswimming.config.KeepSwimmingConfig;
@@ -17,8 +17,8 @@ public class MasterToggleKeyHandler extends KeyHandler {
     }
 
     @Override
-    public void onWasPressed(MinecraftClient client) {
-        if (!client.isInSingleplayer()) return;
+    public void onWasPressed(Minecraft client) {
+        if (!client.isSingleplayer()) return;
 
         KeepSwimming.INSTANCE.getConfig(KeepSwimmingConfig.class).ifPresent(object -> {
             KeepSwimmingConfig config = (KeepSwimmingConfig) object;
@@ -26,13 +26,13 @@ public class MasterToggleKeyHandler extends KeyHandler {
             config.setMasterToggle(toggled);
 
             if (client.player != null) {
-                client.player.sendMessage(
-                        Text.literal(KeepSwimming.MOD_DISPLAY).formatted(Formatting.AQUA)
-                                .append(Text.literal(" » ").formatted(Formatting.DARK_GRAY)
-                                .append(Text.literal(toggled ? "Enabled" : "Disabled").formatted(toggled ?
-                                        Formatting.GREEN : Formatting.RED
+                client.player.sendOverlayMessage(
+                        Component.literal(KeepSwimming.MOD_DISPLAY).withStyle(ChatFormatting.AQUA)
+                                .append(Component.literal(" » ").withStyle(ChatFormatting.DARK_GRAY)
+                                .append(Component.literal(toggled ? "Enabled" : "Disabled").withStyle(toggled ?
+                                        ChatFormatting.GREEN : ChatFormatting.RED
                                 )))
-                        , true);
+                        );
             }
         });
     }

@@ -1,5 +1,6 @@
 package net.solyze.keepswimming.client;
 
+import com.mojang.authlib.minecraft.client.MinecraftClient;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import lombok.Getter;
@@ -7,16 +8,14 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.impl.screenhandler.client.ClientNetworking;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.solyze.keepswimming.KeepSwimming;
 import net.solyze.keepswimming.client.util.KeepSwimmingOptionData;
 import net.solyze.keepswimming.client.keybind.KeyHandler;
@@ -27,7 +26,7 @@ import net.solyze.keepswimming.networking.HandshakePacket;
 import java.util.ArrayList;
 import java.util.List;
 
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 public class KeepSwimmingClient implements ClientModInitializer {
 
@@ -111,12 +110,12 @@ public class KeepSwimmingClient implements ClientModInitializer {
         this.registerKeyBindHandler(new MasterToggleKeyHandler());
         ClientTickEvents.END_CLIENT_TICK.register(this::onEndClientTick);
 
-        ClientPlayNetworking.registerGlobalReceiver(HandshakePacket.PACKET_ID, ((packet, context) -> {
+        ClientPlayNetworking.registerGlobalReceiver(HandshakePacket.PACKET_ID, ((_, _) -> {
             this.serverCompatible = true;
             KeepSwimming.LOGGER.info("Handshake packet received! Now server compatible.");
         }));
 
-        ClientPlayConnectionEvents.JOIN.register(((handler, packetSender, client) -> {
+        ClientPlayConnectionEvents.JOIN.register(((_, _, client) -> {
             this.serverCompatible = false;
             KeepSwimming.LOGGER.info("Scheduling handshake packet...");
 
@@ -141,8 +140,8 @@ public class KeepSwimmingClient implements ClientModInitializer {
         }
 
         command = command.then(literal("handshakestatus").executes(ctx -> {
-            ctx.getSource().getPlayer().sendMessage(Text.literal(String.valueOf(this.serverCompatible))
-                    .withColor(this.serverCompatible ? 0x55FF55 : 0xFF5555), false);
+            ctx.getSource().getPlayer().sendSystemMessage(Component.literal(String.valueOf(this.serverCompatible))
+                    .withColor(this.serverCompatible ? 0x55FF55 : 0xFF5555));
             return 1;
         }));
 
@@ -155,75 +154,74 @@ public class KeepSwimmingClient implements ClientModInitializer {
             KeepSwimmingConfig config = (KeepSwimmingConfig) object;
             boolean toggled = !option.getter().apply(config);
             option.setter().accept(config, toggled);
-            ctx.getSource().getPlayer().sendMessage(getOptionToggleText(option, toggled), true);
+            ctx.getSource().getPlayer().sendSystemMessage(getOptionToggleText(option, toggled));
 
             KeepSwimming.INSTANCE.saveConfig(KeepSwimmingConfig.class);
         });
     }
 
     private void showHelp(CommandContext<FabricClientCommandSource> ctx) {
-        ClientPlayerEntity player = ctx.getSource().getPlayer();
-        player.sendMessage(Text.empty(), false);
-        player.sendMessage(Text.literal("Using the command with an option below will toggle said option.")
-                .formatted(Formatting.GOLD, Formatting.BOLD), false);
-        player.sendMessage(Text.empty(), false);
+        LocalPlayer player = ctx.getSource().getPlayer();
+        player.sendSystemMessage(Component.empty());
+        player.sendSystemMessage(Component.literal("Using the command with an option below will toggle said option.")
+                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        player.sendSystemMessage(Component.empty());
 
         for (KeepSwimmingOptionData option : OPTION_DATA) {
-            player.sendMessage(getOptionText(option), false);
+            player.sendSystemMessage(getOptionText(option));
         }
 
-        player.sendMessage(Text.empty(), false);
+        player.sendSystemMessage(Component.empty());
         String joined = String.join(" | ", OPTION_DATA.stream().map(KeepSwimmingOptionData::key).toList());
-        player.sendMessage(Text.literal("Usage: /keepswimming <" + joined + ">").formatted(Formatting.RED), false);
-        player.sendMessage(Text.empty(), false);
+        player.sendSystemMessage(Component.literal("Usage: /keepswimming <" + joined + ">").withStyle(ChatFormatting.RED));
+        player.sendSystemMessage(Component.empty());
     }
 
-    private MutableText getOptionText(KeepSwimmingOptionData option) {
-        MutableText prefix = Text.literal("▎ ").formatted(Formatting.DARK_GRAY);
-        MutableText name = Text.literal(option.key()).formatted(Formatting.YELLOW);
-        MutableText sep = Text.literal(" - ").formatted(Formatting.DARK_GRAY);
-        MutableText desc = Text.literal(option.description()).formatted(Formatting.WHITE);
+    private MutableComponent getOptionText(KeepSwimmingOptionData option) {
+        MutableComponent prefix = Component.literal("▎ ").withStyle(ChatFormatting.DARK_GRAY);
+        MutableComponent name = Component.literal(option.key()).withStyle(ChatFormatting.YELLOW);
+        MutableComponent sep = Component.literal(" - ").withStyle(ChatFormatting.DARK_GRAY);
+        MutableComponent desc = Component.literal(option.description()).withStyle(ChatFormatting.WHITE);
         return prefix.append(name).append(sep).append(desc);
     }
 
-    private void onEndClientTick(MinecraftClient client) {
-        if (client.options == null) return;
+    private void onEndClientTick(Minecraft client) {
         for (KeyHandler keyHandler : this.keyBindHandlers) keyHandler.preCheckPress(client);
-        for (KeyHandler keyHandler : this.keyBindHandlers) if (keyHandler.getKeyBinding().wasPressed())
+        for (KeyHandler keyHandler : this.keyBindHandlers) if (keyHandler.getKeyBinding().consumeClick())
             keyHandler.onWasPressed(client);
     }
 
     private void registerKeyBindHandler(KeyHandler keyHandler) {
-        KeyBindingHelper.registerKeyBinding(keyHandler.getKeyBinding());
+        KeyMappingHelper.registerKeyMapping(keyHandler.getKeyBinding());
         keyHandler.onInitializeClient();
         this.keyBindHandlers.add(keyHandler);
     }
 
     private boolean checkMultiplayer(CommandContext<FabricClientCommandSource> ctx) {
-        boolean multiplayer = !MinecraftClient.getInstance().isInSingleplayer();
+        boolean multiplayer = !Minecraft.getInstance().isSingleplayer();
 
         if (multiplayer) {
-            MutableText name = Text.literal(KeepSwimming.MOD_DISPLAY).formatted(Formatting.AQUA);
-            MutableText sep = Text.literal(" » ").formatted(Formatting.DARK_GRAY);
-            MutableText err = Text.literal("This mod cannot be used on Multiplayer servers.").formatted(Formatting.RED);
+            MutableComponent name = Component.literal(KeepSwimming.MOD_DISPLAY).withStyle(ChatFormatting.AQUA);
+            MutableComponent sep = Component.literal(" » ").withStyle(ChatFormatting.DARK_GRAY);
+            MutableComponent err = Component.literal("This mod cannot be used on Multiplayer servers.").withStyle(ChatFormatting.RED);
 
-            ctx.getSource().getPlayer().sendMessage(name.append(sep).append(err), true);
+            ctx.getSource().getPlayer().sendSystemMessage(name.append(sep).append(err));
         }
 
         return multiplayer;
     }
 
-    private static MutableText getOptionToggleText(KeepSwimmingOptionData option, boolean toggled) {
+    private static MutableComponent getOptionToggleText(KeepSwimmingOptionData option, boolean toggled) {
         return getOptionToggleText(option.key(), toggled);
     }
 
-    private static MutableText getOptionToggleText(String optionName, boolean toggled) {
-        MutableText name = Text.literal(KeepSwimming.MOD_DISPLAY).formatted(Formatting.AQUA);
-        MutableText bracket = Text.literal(" (").formatted(Formatting.DARK_GRAY);
-        MutableText opt = Text.literal(optionName).formatted(Formatting.DARK_AQUA);
-        MutableText sep = Text.literal(") » ").formatted(Formatting.DARK_GRAY);
-        MutableText toggle = Text.literal(toggled ? "Enabled" : "Disabled").formatted(toggled ?
-                Formatting.GREEN : Formatting.RED
+    private static MutableComponent getOptionToggleText(String optionName, boolean toggled) {
+        MutableComponent name = Component.literal(KeepSwimming.MOD_DISPLAY).withStyle(ChatFormatting.AQUA);
+        MutableComponent bracket = Component.literal(" (").withStyle(ChatFormatting.DARK_GRAY);
+        MutableComponent opt = Component.literal(optionName).withStyle(ChatFormatting.DARK_AQUA);
+        MutableComponent sep = Component.literal(") » ").withStyle(ChatFormatting.DARK_GRAY);
+        MutableComponent toggle = Component.literal(toggled ? "Enabled" : "Disabled").withStyle(toggled ?
+                ChatFormatting.GREEN : ChatFormatting.RED
         );
         return name.append(bracket).append(opt).append(sep.append(toggle));
     }
