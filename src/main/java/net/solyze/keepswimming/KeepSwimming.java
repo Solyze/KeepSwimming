@@ -32,7 +32,7 @@ public class KeepSwimming implements ModInitializer {
 
     public KeepSwimming() {
         LOGGER.info("{} initializing...", MOD_DISPLAY);
-        gson = new GsonBuilder().setPrettyPrinting().create();;
+        gson = new GsonBuilder().setPrettyPrinting().create();
     }
 
     @Override
