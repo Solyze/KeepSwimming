@@ -198,7 +198,7 @@ public class KeepSwimmingClient implements ClientModInitializer {
     }
 
     private boolean checkMultiplayer(CommandContext<FabricClientCommandSource> ctx) {
-        boolean multiplayer = !Minecraft.getInstance().isSingleplayer();
+        boolean multiplayer = !Minecraft.getInstance().isLocalServer();
 
         if (multiplayer) {
             MutableComponent name = Component.literal(KeepSwimming.MOD_DISPLAY).withStyle(ChatFormatting.AQUA);
