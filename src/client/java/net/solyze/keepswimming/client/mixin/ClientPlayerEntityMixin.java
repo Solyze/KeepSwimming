@@ -14,7 +14,6 @@ import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.client.gui.screens.reporting.ReportPlayerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.solyze.keepswimming.KeepSwimming;
 import net.solyze.keepswimming.client.KeepSwimmingClient;
@@ -77,7 +76,7 @@ public class ClientPlayerEntityMixin {
             Map.entry(TestBlockEditScreen.class, KeepSwimmingConfig::isTestBlock),
             Map.entry(TestInstanceBlockEditScreen.class, KeepSwimmingConfig::isTestBlock),
             Map.entry(ContainerScreen.class, config -> {
-                ContainerScreen screen = (ContainerScreen) Minecraft.getInstance().screen;
+                ContainerScreen screen = (ContainerScreen) Minecraft.getInstance().gui.screen();
 
                 if (screen != null && screen.getTitle().getContents() instanceof TranslatableContents translatable) {
                     if (config.isChest() && translatable.getKey().equals("container.chest")) return true;
@@ -87,7 +86,7 @@ public class ClientPlayerEntityMixin {
                 return false;
             }),
             Map.entry(DispenserScreen.class, config -> {
-                DispenserScreen screen = (DispenserScreen) Minecraft.getInstance().screen;
+                DispenserScreen screen = (DispenserScreen) Minecraft.getInstance().gui.screen();
 
                 if (screen != null && screen.getTitle().getContents() instanceof TranslatableContents translatable) {
                     if (config.isDropper() && translatable.getKey().equals("container.dropper")) return true;
@@ -109,7 +108,7 @@ public class ClientPlayerEntityMixin {
         Minecraft client = Minecraft.getInstance();
 
         if (!player.isInWater()) return;
-        if (!client.isSingleplayer() && !KeepSwimmingClient.INSTANCE.isServerCompatible()) return;
+        if (!client.isLocalServer() && !KeepSwimmingClient.INSTANCE.isServerCompatible()) return;
 
         Optional<Object> optional = KeepSwimming.INSTANCE.getConfig(KeepSwimmingConfig.class);
         if (optional.isEmpty()) return;
@@ -122,7 +121,7 @@ public class ClientPlayerEntityMixin {
             return;
         }
 
-        Screen screen = client.screen;
+        Screen screen = client.gui.screen();
 
         if (screen != null) {
             if (player.getAbilities().flying && !config.isEvenFlying()) return;
